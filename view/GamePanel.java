@@ -167,6 +167,13 @@ public class GamePanel extends JPanel implements PropertyChangeListener {
 
         if (currentImage != null) {
             g.drawImage(currentImage, viewModel.getPlayerX(), viewModel.getPlayerY(), this);
+            int imgWidth = currentImage.getWidth(this);
+            int imgHeight = currentImage.getHeight(this);
+            System.out.println("Drawing image: " + direction +
+                    " | Width: " + imgWidth +
+                    " | Height: " + imgHeight +
+                    " | at X: " + viewModel.getPlayerX() +
+                    " | Y: " + viewModel.getPlayerY());
         } else {
             // Gambar placeholder jika gambar tidak ditemukan
             g.setColor(Color.RED);
