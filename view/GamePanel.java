@@ -1,9 +1,9 @@
 package view;
 
+import model.ObjectType;
+import model.SkillBall;
 import viewmodel.GameViewModel;
-import java.awt.image.BufferedImage;
-import java.awt.Graphics2D;
-import java.io.File;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -13,180 +13,166 @@ import java.beans.PropertyChangeListener;
 import java.util.HashMap;
 import java.util.Map;
 
-public class GamePanel extends JPanel implements PropertyChangeListener {
+public class GamePanel extends JPanel implements PropertyChangeListener, Runnable {
 
     private GameViewModel viewModel;
-    private Map<String, Image> playerImages;
+    private Image backgroundImage;
+    private Thread gameThread;
+    private Map<ObjectType, Image> objectImages;
+
+    // --- PERUBAHAN: Variabel untuk semua gambar player ---
+    private Image playerImageFront;
+    private Image playerImageLeft;
+    private Image playerImageRight;
+    private Image currentImage; // Gambar player yang aktif
 
     public GamePanel(GameViewModel viewModel) {
         this.viewModel = viewModel;
         this.viewModel.addPropertyChangeListener(this);
 
-        // Map untuk menyimpan gambar-gambar karakter
-        playerImages = new HashMap<>();
-
-        // Muat gambar karakter untuk berbagai arah
-        loadPlayerImages();
+        loadAllImages();
 
         setFocusable(true);
         setupKeyBindings();
-        setBackground(Color.LIGHT_GRAY);
+
+        gameThread = new Thread(this);
+        gameThread.start();
     }
 
-    private void loadPlayerImages() {
+    private void loadAllImages() {
+        objectImages = new HashMap<>();
         try {
-            System.out.println("Working Directory: " + System.getProperty("user.dir"));
+            backgroundImage = new ImageIcon(getClass().getResource("/assets/background.gif")).getImage();
 
-            // Try with different resource paths
-            java.net.URL frontUrl = getClass().getResource("/assets/userDepan.png");
-            System.out.println("Front URL with /assets/: " + frontUrl);
+            // --- PERUBAHAN: Muat semua gambar player ---
+            playerImageFront = loadImage("/assets/userDepan.png");
+            playerImageLeft = loadImage("/assets/userKiri.png");
+            playerImageRight = loadImage("/assets/userKanan.png");
+            currentImage = playerImageFront; // Set gambar awal
 
-            if (frontUrl == null) {
-                // Try without leading slash
-                frontUrl = getClass().getResource("assets/userDepan.png");
-                System.out.println("Front URL with assets/ (no slash): " + frontUrl);
-            }
+            objectImages.put(ObjectType.AYAM, loadImage("/assets/ayam.png"));
+            objectImages.put(ObjectType.BOM, loadImage("/assets/bom.png"));
+            objectImages.put(ObjectType.COTTON, loadImage("/assets/cotton.png"));
+            objectImages.put(ObjectType.SEMANGKA, loadImage("/assets/semangka.png"));
 
-            // Same for other images
-            java.net.URL leftUrl = getClass().getResource("/assets/userKiri.png");
-            java.net.URL rightUrl = getClass().getResource("/assets/userKanan.png");
-
-            if (frontUrl != null) {
-                playerImages.put("front", new ImageIcon(frontUrl).getImage());
-                System.out.println("Front image loaded successfully");
-            }
-            if (leftUrl != null) {
-                playerImages.put("left", new ImageIcon(leftUrl).getImage());
-                System.out.println("Left image loaded successfully");
-            }
-            if (rightUrl != null) {
-                playerImages.put("right", new ImageIcon(rightUrl).getImage());
-                System.out.println("Right image loaded successfully");
-            }
-
-            if (playerImages.isEmpty()) {
-                System.err.println("No images loaded! Trying file system approach...");
-                loadImagesFromFileSystem();
-            }
         } catch (Exception e) {
-            e.printStackTrace();
-            System.err.println("Error loading images: " + e.getMessage());
-            loadImagesFromFileSystem();
+            System.err.println("Gagal memuat gambar: " + e.getMessage());
         }
     }
 
-    private void loadImagesFromFileSystem() {
+    private Image loadImage(String path) {
         try {
-            // Try multiple potential paths
-            String[] paths = {
-                    "src/main/resources/assets/",
-                    "src/assets/",
-                    "assets/",
-                    "resources/assets/"
-            };
-
-            for (String path : paths) {
-                File dir = new File(path);
-                System.out.println("Checking directory: " + dir.getAbsolutePath() + " exists: " + dir.exists());
-
-                if (dir.exists()) {
-                    File frontFile = new File(path + "userDepan.png");
-                    File leftFile = new File(path + "userKiri.png");
-                    File rightFile = new File(path + "userKanan.png");
-
-                    System.out.println("Front file exists: " + frontFile.exists());
-
-                    if (frontFile.exists()) {
-                        playerImages.put("front", new ImageIcon(frontFile.getAbsolutePath()).getImage());
-                        playerImages.put("left", new ImageIcon(leftFile.getAbsolutePath()).getImage());
-                        playerImages.put("right", new ImageIcon(rightFile.getAbsolutePath()).getImage());
-                        System.out.println("Images loaded from: " + path);
-                        break;
-                    }
-                }
-            }
+            return new ImageIcon(getClass().getResource(path)).getImage();
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Gagal memuat aset gambar di path: " + path);
+            return null;
         }
     }
 
-    private void setupKeyBindings() {
-        InputMap inputMap = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-        ActionMap actionMap = getActionMap();
-
-        int moveDistance = 10;
-
-        // Atas - menggunakan gambar depan
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0), "moveUp");
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "moveUp");
-        actionMap.put("moveUp", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                viewModel.movePlayer(0, -moveDistance, "front");
+    @Override
+    public void run() {
+        while (true) {
+            if (!viewModel.isGameOver()) {
+                viewModel.updateGame();
             }
-        });
-
-        // Bawah - menggunakan gambar depan
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), "moveDown");
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "moveDown");
-        actionMap.put("moveDown", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                viewModel.movePlayer(0, moveDistance, "front");
+            repaint();
+            try {
+                Thread.sleep(16);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        });
-
-        // Kiri - menggunakan gambar kiri
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0), "moveLeft");
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "moveLeft");
-        actionMap.put("moveLeft", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                viewModel.movePlayer(-moveDistance, 0, "left");
-            }
-        });
-
-        // Kanan - menggunakan gambar kanan
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0), "moveRight");
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "moveRight");
-        actionMap.put("moveRight", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                viewModel.movePlayer(moveDistance, 0, "right");
-            }
-        });
+        }
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
 
-        // Ambil arah player saat ini dan tampilkan gambar yang sesuai
-        String direction = viewModel.getPlayerDirection();
-        Image currentImage = playerImages.get(direction);
+        if (backgroundImage != null) {
+            g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+        }
 
+        // Gambar player dengan gambar yang aktif saat ini
         if (currentImage != null) {
-            g.drawImage(currentImage, viewModel.getPlayerX(), viewModel.getPlayerY(), this);
-            int imgWidth = currentImage.getWidth(this);
-            int imgHeight = currentImage.getHeight(this);
-            System.out.println("Drawing image: " + direction +
-                    " | Width: " + imgWidth +
-                    " | Height: " + imgHeight +
-                    " | at X: " + viewModel.getPlayerX() +
-                    " | Y: " + viewModel.getPlayerY());
-        } else {
-            // Gambar placeholder jika gambar tidak ditemukan
-            g.setColor(Color.RED);
-            g.fillRect(viewModel.getPlayerX(), viewModel.getPlayerY(), 50, 50);
-            g.setColor(Color.WHITE);
-            g.drawString("No Img", viewModel.getPlayerX() + 10, viewModel.getPlayerY() + 30);
+            g2d.drawImage(currentImage, viewModel.getPlayerX(), viewModel.getPlayerY(), this);
+        }
+
+        for (SkillBall ball : viewModel.getSkillBalls()) {
+            Image ballImage = objectImages.get(ball.getType());
+            if (ballImage != null) {
+                g2d.drawImage(ballImage, ball.getX(), ball.getY(), this);
+            } else {
+                g2d.setColor(Color.MAGENTA);
+                g2d.fillRect(ball.getX(), ball.getY(), 40, 40);
+            }
+
+            // --- PERUBAHAN: Jangan tampilkan skor untuk BOM ---
+            if (ball.getType() != ObjectType.BOM) {
+                g2d.setColor(Color.WHITE);
+                g2d.drawString(String.valueOf(ball.getScore()), ball.getX() + 10, ball.getY() + 25);
+            }
+        }
+
+        g2d.setFont(new Font("Arial", Font.BOLD, 20));
+        g2d.setColor(Color.YELLOW);
+        long remainingTime = viewModel.getRemainingTime();
+        long minutes = remainingTime / 60;
+        long seconds = remainingTime % 60;
+        g2d.drawString(String.format("Time: %02d:%02d", minutes, seconds), getWidth() - 120, 30);
+
+        if (viewModel.isGameOver()) {
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            g2d.setColor(Color.RED);
+            g2d.setFont(new Font("Arial", Font.BOLD, 50));
+            FontMetrics fm = g2d.getFontMetrics();
+            int msgWidth = fm.stringWidth("GAME OVER");
+            g2d.drawString("GAME OVER", (getWidth() - msgWidth) / 2, getHeight() / 2);
         }
     }
 
     @Override
-    public void propertyChange(PropertyChangeEvent evt) {
-        if ("playerMoved".equals(evt.getPropertyName())) {
-            repaint();
-        }
+    public void propertyChange(PropertyChangeEvent evt) { }
+
+    private void setupKeyBindings() {
+        InputMap inputMap = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = getActionMap();
+        int moveDistance = 10;
+
+        // --- PERUBAHAN: Ganti gambar player saat tombol ditekan ---
+        actionMap.put("moveUp", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                currentImage = playerImageFront;
+                viewModel.movePlayer(0, -moveDistance);
+            }
+        });
+        actionMap.put("moveDown", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                currentImage = playerImageFront;
+                viewModel.movePlayer(0, moveDistance);
+            }
+        });
+        actionMap.put("moveLeft", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                currentImage = playerImageLeft;
+                viewModel.movePlayer(-moveDistance, 0);
+            }
+        });
+        actionMap.put("moveRight", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                currentImage = playerImageRight;
+                viewModel.movePlayer(moveDistance, 0);
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0), "moveUp");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "moveUp");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), "moveDown");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "moveDown");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0), "moveLeft");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "moveLeft");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0), "moveRight");
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "moveRight");
     }
 }

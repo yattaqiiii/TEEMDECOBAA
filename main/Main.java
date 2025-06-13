@@ -7,20 +7,16 @@ import viewmodel.GameViewModel;
 
 import javax.swing.*;
 
-/**
- * Kelas utama untuk menjalankan aplikasi.
- * Bertugas untuk menginisialisasi dan menghubungkan Model, View, dan ViewModel.
- */
 public class Main {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             // 1. Buat Model
-            // Karakter muncul di tengah sesuai spesifikasi tugas.
-            // (Asumsi layar 800x600, tengahnya sekitar 350, 250)
-            Player player = new Player(350, 250);
+            Player player = new Player(341, 400); // Posisi awal pemain
 
-            // 2. Buat ViewModel dan berikan Model kepadanya
-            GameViewModel viewModel = new GameViewModel(player);
+            // --- PERBAIKAN DI SINI ---
+            // Sekarang kita kirim ukuran layar (800, 600) ke ViewModel
+            // sesuai dengan konstruktor yang baru.
+            GameViewModel viewModel = new GameViewModel(player, 682, 512);
 
             // 3. Buat View (Panel) dan berikan ViewModel kepadanya
             GamePanel gamePanel = new GamePanel(viewModel);

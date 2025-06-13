@@ -4,7 +4,7 @@ import javax.swing.*;
 
 /**
  * View (Frame): Jendela utama aplikasi.
- * Tugasnya hanya menampung panel utama game.
+ * Kembali ke versi sederhana yang hanya menampung GamePanel.
  */
 public class GameView extends JFrame {
 
@@ -14,7 +14,7 @@ public class GameView extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        // Menambahkan panel game ke dalam frame
+        // Langsung menambahkan panel game ke dalam frame
         add(gamePanel);
 
         setVisible(true);
