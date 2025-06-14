@@ -9,6 +9,9 @@ public class Main {
         // Persiapkan database saat aplikasi pertama kali jalan
         DatabaseConnection.createNewTable();
 
+        // --- PANGGIL METODE DATA DUMMY DI SINI ---
+        DatabaseConnection.populateWithDummyData();
+
         SwingUtilities.invokeLater(() -> {
             // Cukup buat GameView, ia akan menampilkan menu utama
             new GameView();
