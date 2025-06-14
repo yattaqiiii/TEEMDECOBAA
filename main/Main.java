@@ -1,28 +1,17 @@
 package main;
 
-import model.Player;
-import view.GamePanel;
+import database.DatabaseConnection;
 import view.GameView;
-import viewmodel.GameViewModel;
-
-import javax.swing.*;
+import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) {
+        // Persiapkan database saat aplikasi pertama kali jalan
+        DatabaseConnection.createNewTable();
+
         SwingUtilities.invokeLater(() -> {
-            // 1. Buat Model
-            Player player = new Player(341, 400); // Posisi awal pemain
-
-            // --- PERBAIKAN DI SINI ---
-            // Sekarang kita kirim ukuran layar (800, 600) ke ViewModel
-            // sesuai dengan konstruktor yang baru.
-            GameViewModel viewModel = new GameViewModel(player, 682, 512);
-
-            // 3. Buat View (Panel) dan berikan ViewModel kepadanya
-            GamePanel gamePanel = new GamePanel(viewModel);
-
-            // 4. Buat View (Frame) dan masukkan Panel ke dalamnya
-            new GameView(gamePanel);
+            // Cukup buat GameView, ia akan menampilkan menu utama
+            new GameView();
         });
     }
 }
