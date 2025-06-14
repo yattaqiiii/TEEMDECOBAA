@@ -11,67 +11,94 @@ import java.util.List;
 import java.util.Objects;
 
 public class MainMenuPanel extends JPanel {
-    private GameView parentFrame;
-    private JTable scoreTable;
-    private DefaultTableModel tableModel;
-    private JRadioButton easyButton, mediumButton, hardButton;
-    private Font arcadeFont, titleFont;
+    private final GameView parentFrame;
+    private final DefaultTableModel tableModel;
 
-    // --- PERBAIKAN 1: Tambahkan variabel untuk gambar background ---
+    // --- PERBAIKAN: Kata kunci 'final' dihapus dari deklarasi variabel ini ---
+    private JRadioButton easyButton;
+    private JRadioButton mediumButton;
+    private JRadioButton hardButton;
+
+    private Font arcadeFont, titleFont;
     private Image backgroundImage;
 
     public MainMenuPanel(GameView parentFrame) {
         this.parentFrame = parentFrame;
-        loadAssets(); // Panggil metode untuk memuat font DAN background
+        loadAssets();
         setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
 
         // Title
         JLabel titleLabel = new JLabel("The Usual Suspect");
         titleLabel.setFont(titleFont);
-        titleLabel.setForeground(new Color(0xFFEEA9)); // Sesuaikan warna agar terbaca di background
-
+        titleLabel.setForeground(new Color(0xFFEEA9));
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2; gbc.insets = new Insets(20, 20, 20, 20);
         add(titleLabel, gbc);
 
-        // Kolom Kiri (Input & Mode)
+        // Kolom Kiri
+        JPanel leftPanel = createLeftPanel();
+        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1; gbc.weightx = 0.4;
+        gbc.fill = GridBagConstraints.VERTICAL; gbc.anchor = GridBagConstraints.CENTER;
+        add(leftPanel, gbc);
+
+        // Kolom Kanan
+        JTable scoreTable;
+        JPanel rightPanel = new JPanel(new BorderLayout(0, 10));
+        rightPanel.setOpaque(false);
+        rightPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 20, 20));
+        JLabel topScoresLabel = new JLabel("Top Scores");
+        setupLabel(topScoresLabel);
+        topScoresLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        rightPanel.add(topScoresLabel, BorderLayout.NORTH);
+        String[] columnNames = {"Name", "Score"};
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
+        scoreTable = new JTable(tableModel);
+        scoreTable.setFont(arcadeFont.deriveFont(16f));
+        scoreTable.setRowHeight(25);
+        JScrollPane scrollPane = new JScrollPane(scoreTable);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scoreTable.setOpaque(false);
+        rightPanel.add(scrollPane, BorderLayout.CENTER);
+        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 0.6; gbc.fill = GridBagConstraints.BOTH;
+        add(rightPanel, gbc);
+
+        updateScoreTable();
+    }
+
+    private JPanel createLeftPanel() {
         JPanel leftPanel = new JPanel(new GridBagLayout());
-        leftPanel.setOpaque(false); // Buat panel transparan
+        leftPanel.setOpaque(false);
         GridBagConstraints leftGbc = new GridBagConstraints();
 
         JTextField nameField = new JTextField(15);
-        JButton startButton = new JButton("Start");
-        JButton quitButton = new JButton("Quit");
+        nameField.setFont(arcadeFont.deriveFont(18f));
+        nameField.setHorizontalAlignment(JTextField.CENTER);
+
+        JButton startButton = createImageButton("/assets/start_button.png", "/assets/start_button_pressed.png");
+        JButton quitButton = createImageButton("/assets/quit_button.png", "/assets/quit_button_pressed.png");
 
         easyButton = new JRadioButton("Easy", true);
         mediumButton = new JRadioButton("Medium");
         hardButton = new JRadioButton("Hard");
+        setupRadioButton(easyButton);
+        setupRadioButton(mediumButton);
+        setupRadioButton(hardButton);
+
         ButtonGroup difficultyGroup = new ButtonGroup();
         difficultyGroup.add(easyButton);
         difficultyGroup.add(mediumButton);
         difficultyGroup.add(hardButton);
 
-        // Terapkan font dan warna
-        Font labelFont = arcadeFont.deriveFont(18f);
-        Color labelColor = new Color(0xFFEEA9);
         JLabel usernameLabel = new JLabel("Username:");
-        usernameLabel.setFont(labelFont);
-        usernameLabel.setForeground(labelColor);
+        setupLabel(usernameLabel);
         JLabel modeLabel = new JLabel("Mode:");
-        modeLabel.setFont(labelFont);
-        modeLabel.setForeground(labelColor);
+        setupLabel(modeLabel);
 
-        nameField.setFont(arcadeFont.deriveFont(18f));
-        startButton.setFont(arcadeFont.deriveFont(20f));
-        quitButton.setFont(arcadeFont.deriveFont(20f));
-        easyButton.setFont(arcadeFont.deriveFont(18f));
-        easyButton.setOpaque(false); easyButton.setForeground(labelColor);
-        mediumButton.setFont(arcadeFont.deriveFont(18f));
-        mediumButton.setOpaque(false); mediumButton.setForeground(labelColor);
-        hardButton.setFont(arcadeFont.deriveFont(18f));
-        hardButton.setOpaque(false); hardButton.setForeground(labelColor);
-
-        leftGbc.gridx = 0; leftGbc.gridy = 0; leftGbc.anchor = GridBagConstraints.WEST;
+        leftGbc.gridx = 0; leftGbc.gridy = 0; leftGbc.anchor = GridBagConstraints.WEST; leftGbc.insets = new Insets(0, 0, 5, 0);
         leftPanel.add(usernameLabel, leftGbc);
         leftGbc.gridy++; leftGbc.fill = GridBagConstraints.HORIZONTAL;
         leftPanel.add(nameField, leftGbc);
@@ -87,35 +114,16 @@ public class MainMenuPanel extends JPanel {
         leftPanel.add(hardButton, leftGbc);
         leftGbc.gridy++; leftGbc.weighty = 1.0; leftGbc.anchor = GridBagConstraints.SOUTH;
         leftPanel.add(quitButton, leftGbc);
-        gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 1; gbc.weightx = 0.3; gbc.fill = GridBagConstraints.VERTICAL;
-        add(leftPanel, gbc);
 
-        // Kolom Kanan (Tabel Skor)
-        JPanel rightPanel = new JPanel(new BorderLayout());
-        rightPanel.setOpaque(false); // Buat panel transparan
-        JLabel topScoresLabel = new JLabel("Top Scores:");
-        topScoresLabel.setFont(labelFont);
-        topScoresLabel.setForeground(labelColor);
-        rightPanel.add(topScoresLabel, BorderLayout.NORTH);
-        String[] columnNames = {"Name", "Score"};
-        tableModel = new DefaultTableModel(columnNames, 0);
-        scoreTable = new JTable(tableModel);
-        JScrollPane scrollPane = new JScrollPane(scoreTable);
-        scrollPane.getViewport().setOpaque(false); // Buat area viewport transparan
-        scrollPane.setOpaque(false); // Buat scrollpane transparan
-        rightPanel.add(scrollPane, BorderLayout.CENTER);
-
-        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 0.7; gbc.fill = GridBagConstraints.BOTH;
-        add(rightPanel, gbc);
-
-        // Listeners...
         startButton.addActionListener(e -> { String username = nameField.getText(); if (username.isBlank()) { JOptionPane.showMessageDialog(this, "Please enter a username.", "Warning", JOptionPane.WARNING_MESSAGE); return; } parentFrame.startGame(username, getSelectedDifficulty()); });
         quitButton.addActionListener(e -> System.exit(0));
-        easyButton.addActionListener(e -> updateScoreTable()); mediumButton.addActionListener(e -> updateScoreTable()); hardButton.addActionListener(e -> updateScoreTable());
-        updateScoreTable();
+        easyButton.addActionListener(e -> updateScoreTable());
+        mediumButton.addActionListener(e -> updateScoreTable());
+        hardButton.addActionListener(e -> updateScoreTable());
+
+        return leftPanel;
     }
 
-    // --- PERBAIKAN 2: Override paintComponent untuk menggambar background ---
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -125,26 +133,48 @@ public class MainMenuPanel extends JPanel {
     }
 
     private void loadAssets() {
-        // Muat Background
-        try {
-            backgroundImage = new ImageIcon(Objects.requireNonNull(getClass().getResource("/assets/background.gif"))).getImage();
-        } catch (Exception e) {
-            System.err.println("Gagal memuat background.gif: " + e.getMessage());
-        }
-
-        // Muat Font
+        try { backgroundImage = new ImageIcon(Objects.requireNonNull(getClass().getResource("/assets/background.gif"))).getImage(); } catch (Exception e) { System.err.println("Gagal memuat background.gif: " + e.getMessage()); }
         try (InputStream is = getClass().getResourceAsStream("/assets/ArcadeClassic.ttf")) {
             if (is != null) {
                 arcadeFont = Font.createFont(Font.TRUETYPE_FONT, is);
                 titleFont = arcadeFont.deriveFont(48f);
-            } else {
-                throw new Exception("File font tidak ditemukan!");
-            }
+            } else { throw new Exception("File font tidak ditemukan!"); }
         } catch (Exception e) {
             System.err.println("Gagal memuat ArcadeClassic.ttf: " + e.getMessage());
             arcadeFont = new Font("Arial", Font.BOLD, 14);
             titleFont = new Font("Arial", Font.BOLD, 30);
         }
+    }
+
+    private void setupRadioButton(JRadioButton button) {
+        button.setFont(arcadeFont.deriveFont(20f));
+        button.setOpaque(false);
+        button.setForeground(new Color(0xFFEEA9));
+        button.setFocusPainted(false);
+    }
+
+    private void setupLabel(JLabel label) {
+        label.setFont(arcadeFont.deriveFont(22f));
+        label.setForeground(new Color(0xFFEEA9));
+    }
+
+    private JButton createImageButton(String imagePath, String pressedImagePath) {
+        JButton button = new JButton();
+        try {
+            ImageIcon icon = new ImageIcon(Objects.requireNonNull(getClass().getResource(imagePath)));
+            button.setIcon(icon);
+            button.setText("");
+            if (pressedImagePath != null) {
+                ImageIcon pressedIcon = new ImageIcon(Objects.requireNonNull(getClass().getResource(pressedImagePath)));
+                button.setPressedIcon(pressedIcon);
+            }
+            button.setBorder(BorderFactory.createEmptyBorder());
+            button.setContentAreaFilled(false);
+            button.setFocusPainted(false);
+        } catch (Exception e) {
+            System.err.println("Gagal memuat gambar tombol: " + imagePath);
+        }
+        return button;
     }
 
     private Difficulty getSelectedDifficulty() {

@@ -4,14 +4,13 @@ import database.DatabaseConnection;
 import model.Difficulty;
 import model.Player;
 import viewmodel.GameViewModel;
-
 import javax.swing.*;
 import java.awt.*;
 
 public class GameView extends JFrame {
-    private CardLayout cardLayout;
-    private JPanel mainPanel;
-    private MainMenuPanel mainMenuPanel;
+    private final CardLayout cardLayout;
+    private final JPanel mainPanel;
+    private final MainMenuPanel mainMenuPanel;
     private GamePanel gamePanel;
     private String currentUsername;
     private Difficulty currentDifficulty;
@@ -21,6 +20,7 @@ public class GameView extends JFrame {
         setSize(800, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
+        setResizable(false);
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
@@ -36,8 +36,8 @@ public class GameView extends JFrame {
         this.currentUsername = username;
         this.currentDifficulty = difficulty;
 
-        Player player = new Player(350, 450); // Posisi awal disesuaikan
-        GameViewModel viewModel = new GameViewModel(player, 800, 600, difficulty);
+        Player player = new Player(350, 450);
+        GameViewModel viewModel = new GameViewModel(player, getWidth(), getHeight(), difficulty);
         gamePanel = new GamePanel(viewModel, this);
 
         mainPanel.add(gamePanel, "GAME");
@@ -46,10 +46,9 @@ public class GameView extends JFrame {
     }
 
     public void showMenu(int finalScore) {
-        // Simpan skor sebelum kembali ke menu
-        DatabaseConnection.insertScore(currentUsername, finalScore, currentDifficulty.name());
-
-        // Hapus panel game lama dan kembali ke menu
+        if (currentUsername != null && currentDifficulty != null) {
+            DatabaseConnection.insertScore(currentUsername, finalScore, currentDifficulty.name());
+        }
         mainPanel.remove(gamePanel);
         cardLayout.show(mainPanel, "MENU");
         mainMenuPanel.updateScoreTable();

@@ -2,7 +2,6 @@ package view;
 
 import model.*;
 import viewmodel.GameViewModel;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -10,66 +9,142 @@ import java.awt.geom.AffineTransform;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class GamePanel extends JPanel implements Runnable {
-
-    private GameViewModel viewModel;
-    private GameView parentFrame;
-    private Thread gameThread;
-    private Map<ObjectType, Image> objectImages;
-
-    // Aset Visual
-    private Image backgroundImage;
-    private Image playerImageFront, playerImageLeft, playerImageRight, currentImage;
-    private Image tanganImage, tanganStghImage;
-    private Image basketImage0, basketImage150, basketImage300;
+    private final GameViewModel viewModel;
+    private final GameView parentFrame;
+    private GameState currentGameState;
+    private final Map<ObjectType, Image> objectImages = new HashMap<>();
+    private Image backgroundImage, playerImageFront, playerImageLeft, playerImageRight, currentImage, tanganImage, tanganStghImage, basketImage0, basketImage150, basketImage300;
     private Font arcadeFont;
     private final Color FONT_OUTER_COLOR = new Color(0x7B, 0x40, 0x19);
     private final Color FONT_INNER_COLOR = new Color(0xFF, 0xEE, 0xA9);
+    private JButton menuButton, resumeButton, quitInGameButton, backToMenuButton;
 
     public GamePanel(GameViewModel viewModel, GameView parentFrame) {
         this.viewModel = viewModel;
         this.parentFrame = parentFrame;
+        this.currentGameState = GameState.PLAYING;
+        setLayout(null);
         loadAssets();
+        createButtons();
         setFocusable(true);
         setupKeyBindings();
-
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                viewModel.castLasso(e.getX(), e.getY());
+                if (currentGameState == GameState.PLAYING) viewModel.castLasso(e.getX(), e.getY());
             }
         });
-
-        gameThread = new Thread(this);
-        gameThread.start();
+        new Thread(this).start();
     }
 
     private void loadAssets() {
-        // --- PERBAIKAN: Logika pemuatan font dibuat lebih aman ---
         try (InputStream is = getClass().getResourceAsStream("/assets/ArcadeClassic.ttf")) {
-            if (is != null) {
-                // Jika file font ditemukan, gunakan
-                arcadeFont = Font.createFont(Font.TRUETYPE_FONT, is);
-            } else {
-                // Jika tidak ditemukan, beri pesan error dan gunakan font cadangan
-                System.err.println("Font ArcadeClassic.ttf tidak ditemukan! Menggunakan font Arial.");
-                arcadeFont = new Font("Arial", Font.BOLD, 20);
-            }
+            arcadeFont = (is != null) ? Font.createFont(Font.TRUETYPE_FONT, is) : new Font("Arial", Font.BOLD, 20);
         } catch (Exception e) {
+            arcadeFont = new Font("Arial", Font.BOLD, 20);
             System.err.println("Gagal memuat font: " + e.getMessage());
-            arcadeFont = new Font("Arial", Font.BOLD, 20); // Gunakan font cadangan jika ada error
         }
-
-        objectImages = new HashMap<>();
-        // ... (sisa kode pemuatan gambar tidak berubah) ...
-        try { backgroundImage = loadImage("/assets/background.gif"); tanganImage = loadImage("/assets/tangan.png"); tanganStghImage = loadImage("/assets/tanganstgh.png"); playerImageFront = loadImage("/assets/userDepan.png"); playerImageLeft = loadImage("/assets/userKiri.png"); playerImageRight = loadImage("/assets/userKanan.png"); currentImage = playerImageFront; basketImage0 = loadImage("/assets/kotak0.png"); basketImage150 = loadImage("/assets/kotak150.png"); basketImage300 = loadImage("/assets/kotak300.png"); objectImages.put(ObjectType.AYAM, loadImage("/assets/ayam.png")); objectImages.put(ObjectType.BOM, loadImage("/assets/bom.png")); objectImages.put(ObjectType.COTTON, loadImage("/assets/cotton.png")); objectImages.put(ObjectType.SEMANGKA, loadImage("/assets/semangka.png")); } catch (Exception e) { System.err.println("Gagal memuat salah satu gambar utama: " + e.getMessage()); }
+        backgroundImage = loadImage("/assets/background.gif");
+        tanganImage = loadImage("/assets/tangan.png");
+        tanganStghImage = loadImage("/assets/tanganstgh.png");
+        playerImageFront = loadImage("/assets/userDepan.png");
+        playerImageLeft = loadImage("/assets/userKiri.png");
+        playerImageRight = loadImage("/assets/userKanan.png");
+        currentImage = playerImageFront;
+        basketImage0 = loadImage("/assets/kotak0.png");
+        basketImage150 = loadImage("/assets/kotak150.png");
+        basketImage300 = loadImage("/assets/kotak300.png");
+        objectImages.put(ObjectType.AYAM, loadImage("/assets/ayam.png"));
+        objectImages.put(ObjectType.BOM, loadImage("/assets/bom.png"));
+        objectImages.put(ObjectType.COTTON, loadImage("/assets/cotton.png"));
+        objectImages.put(ObjectType.SEMANGKA, loadImage("/assets/semangka.png"));
     }
 
-    private Image loadImage(String path) { try { return new ImageIcon(getClass().getResource(path)).getImage(); } catch (Exception e) { System.err.println("Gagal memuat aset gambar di path: " + path); return null; } }
+    private Image loadImage(String path) {
+        try {
+            return new ImageIcon(Objects.requireNonNull(getClass().getResource(path))).getImage();
+        } catch (Exception e) {
+            System.err.println("Gagal memuat aset gambar di path: " + path);
+            return null;
+        }
+    }
+
+    private void createButtons() {
+        menuButton = createImageButton("/assets/menu_button.png", null);
+        menuButton.setBounds(15, 90, 50, 50);
+        menuButton.addActionListener(e -> setGameState(GameState.PAUSED));
+        add(menuButton);
+
+        resumeButton = createImageButton("/assets/resume_button.png", "/assets/resume_button_pressed.png");
+        resumeButton.setBounds(300, 280, 200, 50);
+        resumeButton.addActionListener(e -> setGameState(GameState.PLAYING));
+        add(resumeButton);
+
+        quitInGameButton = createImageButton("/assets/quit_button.png", "/assets/quit_button_pressed.png");
+        quitInGameButton.setBounds(300, 340, 200, 50);
+        quitInGameButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore()));
+        add(quitInGameButton);
+
+        backToMenuButton = createImageButton("/assets/back_button.png", "/assets/back_button_pressed.png");
+        backToMenuButton.setBounds(300, 340, 200, 50);
+        backToMenuButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore()));
+        add(backToMenuButton);
+
+        setComponentVisibility();
+    }
+
+    // --- PERBAIKAN DI SINI ---
+    private JButton createImageButton(String imagePath, String pressedImagePath) {
+        JButton button = new JButton();
+        try {
+            ImageIcon icon = new ImageIcon(Objects.requireNonNull(getClass().getResource(imagePath)));
+            button.setIcon(icon);
+            button.setText(""); // Pastikan tidak ada teks
+            if (pressedImagePath != null) {
+                ImageIcon pressedIcon = new ImageIcon(Objects.requireNonNull(getClass().getResource(pressedImagePath)));
+                button.setPressedIcon(pressedIcon);
+            }
+            button.setBorder(BorderFactory.createEmptyBorder());
+            button.setContentAreaFilled(false);
+            button.setFocusPainted(false);
+        } catch (Exception e) {
+            System.err.println("Gagal memuat gambar tombol: " + imagePath);
+        }
+        return button;
+    }
+
+    private void setGameState(GameState state) {
+        this.currentGameState = state;
+        setComponentVisibility();
+    }
+
+    private void setComponentVisibility() {
+        menuButton.setVisible(currentGameState == GameState.PLAYING);
+        resumeButton.setVisible(currentGameState == GameState.PAUSED);
+        quitInGameButton.setVisible(currentGameState == GameState.PAUSED);
+        backToMenuButton.setVisible(currentGameState == GameState.GAME_OVER);
+    }
 
     @Override
-    public void run() { while (true) { if (!viewModel.isGameOver()) viewModel.updateGame(); repaint(); try { Thread.sleep(16); } catch (InterruptedException e) { e.printStackTrace(); } } }
+    public void run() {
+        while (true) {
+            if (currentGameState == GameState.PLAYING) {
+                viewModel.updateGame();
+                if (viewModel.isGameOver()) {
+                    setGameState(GameState.GAME_OVER);
+                }
+            }
+            repaint();
+            try {
+                Thread.sleep(16);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -79,48 +154,62 @@ public class GamePanel extends JPanel implements Runnable {
 
         if (backgroundImage != null) g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
 
-        int score = viewModel.getTotalScore();
         Image currentBasketImage = basketImage0;
+        int score = viewModel.getTotalScore();
         if (score >= 300) currentBasketImage = basketImage300; else if (score >= 150) currentBasketImage = basketImage150;
         if (currentBasketImage != null) g2d.drawImage(currentBasketImage, 501, 400, this);
 
         Lasso lasso = viewModel.getLasso();
         Image imageToDraw = currentImage;
         if (lasso.isActive()) {
-            if (lasso.getEndX() < viewModel.getPlayerX()) imageToDraw = playerImageLeft;
-            else imageToDraw = playerImageRight;
+            imageToDraw = (lasso.getEndX() < viewModel.getPlayer().getX() + 32) ? playerImageLeft : playerImageRight;
         }
-        if (imageToDraw != null) g2d.drawImage(imageToDraw, viewModel.getPlayerX(), viewModel.getPlayerY(), this);
+        if (imageToDraw != null) g2d.drawImage(imageToDraw, viewModel.getPlayer().getX(), viewModel.getPlayer().getY(), this);
 
-        if (lasso.isActive() && tanganStghImage != null) {
-            int playerCenterX = viewModel.getPlayerX() + 32; int playerCenterY = viewModel.getPlayerY() + 32;
-            int targetX, targetY;
-            if (lasso.getTarget() != null) { targetX = lasso.getTarget().getX() + 20; targetY = lasso.getTarget().getY() + 20; }
-            else { targetX = lasso.getEndX(); targetY = lasso.getEndY(); }
-            double dx = targetX - playerCenterX; double dy = targetY - playerCenterY; double angle = Math.atan2(dy, dx);
-            double distance = Math.sqrt(dx * dx + dy * dy); int segmentLength = tanganStghImage.getWidth(this); if(segmentLength <= 0) segmentLength = 1;
-            AffineTransform oldTransform = g2d.getTransform(); g2d.translate(playerCenterX, playerCenterY); g2d.rotate(angle);
-            for (int i = 0; i < distance; i += segmentLength) g2d.drawImage(tanganStghImage, i, -tanganStghImage.getHeight(this) / 2, this);
-            if (tanganImage != null) g2d.drawImage(tanganImage, (int)distance - tanganImage.getWidth(this)/2, -tanganImage.getHeight(this)/2, this);
-            g2d.setTransform(oldTransform);
-        }
+        if (lasso.isActive() && tanganStghImage != null) drawLasso(g2d, lasso);
 
         for (SkillBall ball : viewModel.getSkillBalls()) { Image ballImage = objectImages.get(ball.getType()); if (ballImage != null) g2d.drawImage(ballImage, ball.getX(), ball.getY(), this); }
 
-        // Tampilan Skor, Timer, dan Animasi Skor
         drawUI(g2d);
 
-        if (viewModel.isGameOver()) { /* ... (logika game over) ... */ g2d.setColor(new Color(0, 0, 0, 150)); g2d.fillRect(0, 0, getWidth(), getHeight()); g2d.setColor(Color.RED); g2d.setFont(arcadeFont.deriveFont(50f)); FontMetrics fm = g2d.getFontMetrics(); int msgWidth = fm.stringWidth("GAME OVER"); g2d.drawString("GAME OVER", (getWidth() - msgWidth) / 2, getHeight() / 2); g2d.setFont(arcadeFont.deriveFont(20f)); int spaceMsgWidth = fm.stringWidth("Press SPACE to return to Menu"); g2d.drawString("Press SPACE to return to Menu", (getWidth() - spaceMsgWidth) / 2 + 50, getHeight() / 2 + 40); }
+        if (currentGameState == GameState.PAUSED) drawOverlay(g2d, "Game Paused");
+        else if (currentGameState == GameState.GAME_OVER) drawOverlay(g2d, "Game Over");
+    }
+
+    private void drawLasso(Graphics2D g2d, Lasso lasso) {
+        int playerCenterX = viewModel.getPlayer().getX() + 32;
+        int playerCenterY = viewModel.getPlayer().getY() + 32;
+        int targetX, targetY;
+        if (lasso.getTarget() != null) {
+            targetX = lasso.getTarget().getX() + 20;
+            targetY = lasso.getTarget().getY() + 20;
+        } else {
+            targetX = lasso.getEndX();
+            targetY = lasso.getEndY();
+        }
+
+        double dx = targetX - playerCenterX;
+        double dy = targetY - playerCenterY;
+        double angle = Math.atan2(dy, dx);
+        double distance = Math.sqrt(dx * dx + dy * dy);
+        int segmentLength = tanganStghImage.getWidth(this);
+        if (segmentLength <= 0) segmentLength = 1;
+
+        AffineTransform oldTransform = g2d.getTransform();
+        g2d.translate(playerCenterX, playerCenterY);
+        g2d.rotate(angle);
+        for (int i = 0; i < distance - segmentLength; i += segmentLength) {
+            g2d.drawImage(tanganStghImage, i, -tanganStghImage.getHeight(this) / 2, this);
+        }
+        if (tanganImage != null) {
+            g2d.drawImage(tanganImage, (int) distance - tanganImage.getWidth(this), -tanganImage.getHeight(this) / 2, this);
+        }
+        g2d.setTransform(oldTransform);
     }
 
     private void drawUI(Graphics2D g2d) {
-        long remainingTime = viewModel.getRemainingTime();
-        String timeStr = String.format("Time: %02d:%02d", remainingTime / 60, remainingTime % 60);
-        String scoreStr = "Score: " + viewModel.getTotalScore();
-
-        drawTextWithOutline(g2d, timeStr, 15, 40, 24f);
-        drawTextWithOutline(g2d, scoreStr, 15, 70, 24f);
-
+        drawTextWithOutline(g2d, String.format("Time: %02d:%02d", viewModel.getRemainingTime() / 60, viewModel.getRemainingTime() % 60), 15, 40, 24f);
+        drawTextWithOutline(g2d, "Score: " + viewModel.getTotalScore(), 15, 70, 24f);
         for (ScorePopup popup : viewModel.getScorePopups()) {
             g2d.setFont(arcadeFont.deriveFont(20f));
             g2d.setColor(popup.getColor());
@@ -128,11 +217,29 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
+    private void drawOverlay(Graphics2D g2d, String text) {
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+        Font bigFont = arcadeFont.deriveFont(50f);
+        FontMetrics fmBig = g2d.getFontMetrics(bigFont);
+        int msgWidth = fmBig.stringWidth(text);
+        drawTextWithOutline(g2d, text, (getWidth() - msgWidth) / 2, getHeight() / 2, 50f);
+
+        if (text.equals("Game Over")) {
+            Font smallFont = arcadeFont.deriveFont(20f);
+            FontMetrics fmSmall = g2d.getFontMetrics(smallFont);
+            int spaceMsgWidth = fmSmall.stringWidth("Press SPACE to return to Menu");
+            drawTextWithOutline(g2d, "Press SPACE to return to Menu", (getWidth() - spaceMsgWidth) / 2, getHeight() / 2 + 40, 20f);
+        }
+    }
+
     private void drawTextWithOutline(Graphics2D g2d, String text, int x, int y, float size) {
-        g2d.setFont(arcadeFont.deriveFont(size));
+        Font font = arcadeFont.deriveFont(size);
+        g2d.setFont(font);
         g2d.setColor(FONT_OUTER_COLOR);
-        g2d.drawString(text, x - 2, y - 2); g2d.drawString(text, x + 2, y - 2);
-        g2d.drawString(text, x - 2, y + 2); g2d.drawString(text, x + 2, y + 2);
+        int offset = 2;
+        g2d.drawString(text, x - offset, y - offset); g2d.drawString(text, x + offset, y - offset);
+        g2d.drawString(text, x - offset, y + offset); g2d.drawString(text, x + offset, y + offset);
         g2d.setColor(FONT_INNER_COLOR);
         g2d.drawString(text, x, y);
     }
@@ -142,10 +249,10 @@ public class GamePanel extends JPanel implements Runnable {
         ActionMap actionMap = getActionMap();
         int moveDistance = 10;
 
-        actionMap.put("moveUp", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { currentImage = playerImageFront; viewModel.movePlayer(0, -moveDistance); }});
-        actionMap.put("moveDown", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { currentImage = playerImageFront; viewModel.movePlayer(0, moveDistance); }});
-        actionMap.put("moveLeft", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { currentImage = playerImageLeft; viewModel.movePlayer(-moveDistance, 0); }});
-        actionMap.put("moveRight", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { currentImage = playerImageRight; viewModel.movePlayer(moveDistance, 0); }});
+        actionMap.put("moveUp", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { if(currentGameState == GameState.PLAYING) { currentImage = playerImageFront; viewModel.movePlayer(0, -moveDistance); } }});
+        actionMap.put("moveDown", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { if(currentGameState == GameState.PLAYING) { currentImage = playerImageFront; viewModel.movePlayer(0, moveDistance); } }});
+        actionMap.put("moveLeft", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { if(currentGameState == GameState.PLAYING) { currentImage = playerImageLeft; viewModel.movePlayer(-moveDistance, 0); } }});
+        actionMap.put("moveRight", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { if(currentGameState == GameState.PLAYING) { currentImage = playerImageRight; viewModel.movePlayer(moveDistance, 0); } }});
 
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_W, 0), "moveUp"); inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_UP, 0), "moveUp");
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), "moveDown"); inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "moveDown");
@@ -156,7 +263,7 @@ public class GamePanel extends JPanel implements Runnable {
         getActionMap().put("returnToMenu", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (viewModel.isGameOver()) {
+                if (currentGameState == GameState.GAME_OVER) {
                     parentFrame.showMenu(viewModel.getTotalScore());
                 }
             }
