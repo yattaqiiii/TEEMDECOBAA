@@ -2,6 +2,7 @@ package view;
 
 import model.*;
 import viewmodel.GameViewModel;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -15,26 +16,35 @@ public class GamePanel extends JPanel implements Runnable {
     private final GameViewModel viewModel;
     private final GameView parentFrame;
     private GameState currentGameState;
+
+    // Aset Visual
     private final Map<ObjectType, Image> objectImages = new HashMap<>();
     private Image backgroundImage, playerImageFront, playerImageLeft, playerImageRight, currentImage, tanganImage, tanganStghImage, basketImage0, basketImage150, basketImage300;
     private Font arcadeFont;
     private final Color FONT_OUTER_COLOR = new Color(0x7B, 0x40, 0x19);
     private final Color FONT_INNER_COLOR = new Color(0xFF, 0xEE, 0xA9);
+
+    // Komponen UI
     private JButton menuButton, resumeButton, quitInGameButton, backToMenuButton;
 
     public GamePanel(GameViewModel viewModel, GameView parentFrame) {
         this.viewModel = viewModel;
         this.parentFrame = parentFrame;
         this.currentGameState = GameState.PLAYING;
-        setLayout(null);
+        setLayout(null); // Gunakan null layout untuk menempatkan tombol secara manual
+
         loadAssets();
         createButtons();
+
         setFocusable(true);
         setupKeyBindings();
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (currentGameState == GameState.PLAYING) viewModel.castLasso(e.getX(), e.getY());
+                // Hanya izinkan aksi klik sesuai state game
+                if (currentGameState == GameState.PLAYING) {
+                    viewModel.castLasso(e.getX(), e.getY());
+                }
             }
         });
         new Thread(this).start();
@@ -44,16 +54,17 @@ public class GamePanel extends JPanel implements Runnable {
         try (InputStream is = getClass().getResourceAsStream("/assets/ArcadeClassic.ttf")) {
             arcadeFont = (is != null) ? Font.createFont(Font.TRUETYPE_FONT, is) : new Font("Arial", Font.BOLD, 20);
         } catch (Exception e) {
+            System.err.println("Gagal memuat font ArcadeClassic.ttf, menggunakan Arial.");
             arcadeFont = new Font("Arial", Font.BOLD, 20);
-            System.err.println("Gagal memuat font: " + e.getMessage());
         }
+
         backgroundImage = loadImage("/assets/background.gif");
         tanganImage = loadImage("/assets/tangan.png");
         tanganStghImage = loadImage("/assets/tanganstgh.png");
         playerImageFront = loadImage("/assets/userDepan.png");
         playerImageLeft = loadImage("/assets/userKiri.png");
         playerImageRight = loadImage("/assets/userKanan.png");
-        currentImage = playerImageFront;
+        currentImage = playerImageFront; // Gambar awal
         basketImage0 = loadImage("/assets/kotak0.png");
         basketImage150 = loadImage("/assets/kotak150.png");
         basketImage300 = loadImage("/assets/kotak300.png");
@@ -73,40 +84,38 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void createButtons() {
-        menuButton = createImageButton("/assets/menu_button.png", null);
-        menuButton.setBounds(15, 90, 50, 50);
+        // Tombol Menu di pojok kanan atas
+        menuButton = createImageButton("/assets/menu_button.png");
+        menuButton.setBounds(682 - 65, 15, 120, 50); // Posisi baru
         menuButton.addActionListener(e -> setGameState(GameState.PAUSED));
         add(menuButton);
 
-        resumeButton = createImageButton("/assets/resume_button.png", "/assets/resume_button_pressed.png");
-        resumeButton.setBounds(300, 280, 200, 50);
+        // Tombol di layar Pause
+        resumeButton = createImageButton("/assets/resume_button.png");
+        resumeButton.setBounds(241, 280, 200, 50);
         resumeButton.addActionListener(e -> setGameState(GameState.PLAYING));
         add(resumeButton);
 
-        quitInGameButton = createImageButton("/assets/quit_button.png", "/assets/quit_button_pressed.png");
-        quitInGameButton.setBounds(300, 340, 200, 50);
+        quitInGameButton = createImageButton("/assets/quit_button.png");
+        quitInGameButton.setBounds(241, 340, 200, 50);
         quitInGameButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore()));
         add(quitInGameButton);
 
-        backToMenuButton = createImageButton("/assets/back_button.png", "/assets/back_button_pressed.png");
-        backToMenuButton.setBounds(300, 340, 200, 50);
+        // Tombol di layar Game Over
+        backToMenuButton = createImageButton("/assets/back_button.png");
+        backToMenuButton.setBounds(241, 340, 200, 50);
         backToMenuButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore()));
         add(backToMenuButton);
 
-        setComponentVisibility();
+        setComponentVisibility(); // Atur visibilitas awal
     }
 
-    // --- PERBAIKAN DI SINI ---
-    private JButton createImageButton(String imagePath, String pressedImagePath) {
+    private JButton createImageButton(String imagePath) {
         JButton button = new JButton();
         try {
             ImageIcon icon = new ImageIcon(Objects.requireNonNull(getClass().getResource(imagePath)));
             button.setIcon(icon);
             button.setText(""); // Pastikan tidak ada teks
-            if (pressedImagePath != null) {
-                ImageIcon pressedIcon = new ImageIcon(Objects.requireNonNull(getClass().getResource(pressedImagePath)));
-                button.setPressedIcon(pressedIcon);
-            }
             button.setBorder(BorderFactory.createEmptyBorder());
             button.setContentAreaFilled(false);
             button.setFocusPainted(false);
@@ -139,8 +148,9 @@ public class GamePanel extends JPanel implements Runnable {
             }
             repaint();
             try {
-                Thread.sleep(16);
+                Thread.sleep(16); // Menjaga game berjalan sekitar 60 FPS
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 e.printStackTrace();
             }
         }
@@ -152,6 +162,18 @@ public class GamePanel extends JPanel implements Runnable {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
+        // Gambar elemen-elemen utama game
+        drawGameWorld(g2d);
+
+        // Gambar overlay jika game di-pause atau berakhir
+        if (currentGameState == GameState.PAUSED) {
+            drawOverlay(g2d, "Game Paused");
+        } else if (currentGameState == GameState.GAME_OVER) {
+            drawOverlay(g2d, "Game Over");
+        }
+    }
+
+    private void drawGameWorld(Graphics2D g2d) {
         if (backgroundImage != null) g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
 
         Image currentBasketImage = basketImage0;
@@ -160,7 +182,7 @@ public class GamePanel extends JPanel implements Runnable {
         if (currentBasketImage != null) g2d.drawImage(currentBasketImage, 501, 400, this);
 
         Lasso lasso = viewModel.getLasso();
-        Image imageToDraw = currentImage;
+        Image imageToDraw = currentImage; // Gambar default dari gerakan WASD
         if (lasso.isActive()) {
             imageToDraw = (lasso.getEndX() < viewModel.getPlayer().getX() + 32) ? playerImageLeft : playerImageRight;
         }
@@ -171,9 +193,6 @@ public class GamePanel extends JPanel implements Runnable {
         for (SkillBall ball : viewModel.getSkillBalls()) { Image ballImage = objectImages.get(ball.getType()); if (ballImage != null) g2d.drawImage(ballImage, ball.getX(), ball.getY(), this); }
 
         drawUI(g2d);
-
-        if (currentGameState == GameState.PAUSED) drawOverlay(g2d, "Game Paused");
-        else if (currentGameState == GameState.GAME_OVER) drawOverlay(g2d, "Game Over");
     }
 
     private void drawLasso(Graphics2D g2d, Lasso lasso) {
@@ -198,9 +217,11 @@ public class GamePanel extends JPanel implements Runnable {
         AffineTransform oldTransform = g2d.getTransform();
         g2d.translate(playerCenterX, playerCenterY);
         g2d.rotate(angle);
-        for (int i = 0; i < distance - segmentLength; i += segmentLength) {
+        // Gambar rantai tali dengan sedikit tumpang tindih
+        for (int i = 0; i < distance - segmentLength; i += segmentLength * 0.9) {
             g2d.drawImage(tanganStghImage, i, -tanganStghImage.getHeight(this) / 2, this);
         }
+        // Gambar tangan di ujung
         if (tanganImage != null) {
             g2d.drawImage(tanganImage, (int) distance - tanganImage.getWidth(this), -tanganImage.getHeight(this) / 2, this);
         }
@@ -208,10 +229,11 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void drawUI(Graphics2D g2d) {
-        drawTextWithOutline(g2d, String.format("Time: %02d:%02d", viewModel.getRemainingTime() / 60, viewModel.getRemainingTime() % 60), 15, 40, 24f);
-        drawTextWithOutline(g2d, "Score: " + viewModel.getTotalScore(), 15, 70, 24f);
+        drawTextWithOutline(g2d, String.format("Time %02d %02d", viewModel.getRemainingTime() / 60, viewModel.getRemainingTime() % 60), 15, 40, 24f);
+        drawTextWithOutline(g2d, "Score " + viewModel.getTotalScore(), 15, 70, 24f);
+
+        g2d.setFont(arcadeFont.deriveFont(20f));
         for (ScorePopup popup : viewModel.getScorePopups()) {
-            g2d.setFont(arcadeFont.deriveFont(20f));
             g2d.setColor(popup.getColor());
             g2d.drawString(popup.getText(), popup.getX(), popup.getY());
         }
@@ -220,17 +242,11 @@ public class GamePanel extends JPanel implements Runnable {
     private void drawOverlay(Graphics2D g2d, String text) {
         g2d.setColor(new Color(0, 0, 0, 150));
         g2d.fillRect(0, 0, getWidth(), getHeight());
+
         Font bigFont = arcadeFont.deriveFont(50f);
         FontMetrics fmBig = g2d.getFontMetrics(bigFont);
         int msgWidth = fmBig.stringWidth(text);
-        drawTextWithOutline(g2d, text, (getWidth() - msgWidth) / 2, getHeight() / 2, 50f);
-
-        if (text.equals("Game Over")) {
-            Font smallFont = arcadeFont.deriveFont(20f);
-            FontMetrics fmSmall = g2d.getFontMetrics(smallFont);
-            int spaceMsgWidth = fmSmall.stringWidth("Press SPACE to return to Menu");
-            drawTextWithOutline(g2d, "Press SPACE to return to Menu", (getWidth() - spaceMsgWidth) / 2, getHeight() / 2 + 40, 20f);
-        }
+        drawTextWithOutline(g2d, text, (getWidth() - msgWidth) / 2, getHeight() / 2 - 50, 50f);
     }
 
     private void drawTextWithOutline(Graphics2D g2d, String text, int x, int y, float size) {
@@ -238,8 +254,8 @@ public class GamePanel extends JPanel implements Runnable {
         g2d.setFont(font);
         g2d.setColor(FONT_OUTER_COLOR);
         int offset = 2;
-        g2d.drawString(text, x - offset, y - offset); g2d.drawString(text, x + offset, y - offset);
-        g2d.drawString(text, x - offset, y + offset); g2d.drawString(text, x + offset, y + offset);
+        g2d.drawString(text, x - offset, y); g2d.drawString(text, x + offset, y);
+        g2d.drawString(text, x, y - offset); g2d.drawString(text, x, y + offset);
         g2d.setColor(FONT_INNER_COLOR);
         g2d.drawString(text, x, y);
     }
@@ -259,14 +275,6 @@ public class GamePanel extends JPanel implements Runnable {
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0), "moveLeft"); inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "moveLeft");
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0), "moveRight"); inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "moveRight");
 
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "returnToMenu");
-        getActionMap().put("returnToMenu", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (currentGameState == GameState.GAME_OVER) {
-                    parentFrame.showMenu(viewModel.getTotalScore());
-                }
-            }
-        });
+        // Tombol SPACE sekarang tidak melakukan apa-apa karena sudah ada tombol Back
     }
 }
