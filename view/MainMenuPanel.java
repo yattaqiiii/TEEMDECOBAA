@@ -13,9 +13,12 @@ import java.util.Objects;
 public class MainMenuPanel extends JPanel {
     private final GameView parentFrame;
     private final DefaultTableModel tableModel;
+
+    // --- PERBAIKAN: Kata kunci 'final' dihapus dari sini ---
     private JRadioButton easyButton;
     private JRadioButton mediumButton;
     private JRadioButton hardButton;
+
     private Font arcadeFont, titleFont;
     private Image backgroundImage;
     private final Color FONT_COLOR = new Color(0xFFEEA9);
@@ -31,7 +34,6 @@ public class MainMenuPanel extends JPanel {
         titleLabel.setFont(titleFont);
         titleLabel.setForeground(FONT_COLOR);
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
         gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2; gbc.insets = new Insets(20, 20, 20, 20);
         add(titleLabel, gbc);
 
@@ -76,7 +78,6 @@ public class MainMenuPanel extends JPanel {
         nameField.setFont(arcadeFont.deriveFont(18f));
         nameField.setHorizontalAlignment(JTextField.CENTER);
 
-        // --- PERUBAHAN: Efek pressed dihilangkan ---
         JButton startButton = createImageButton("/assets/start_button.png");
         JButton quitButton = createImageButton("/assets/quit_button.png");
 
@@ -144,22 +145,20 @@ public class MainMenuPanel extends JPanel {
         if (backgroundImage != null) {
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         }
-        // --- PERUBAHAN: Menggambar outline pada judul secara manual ---
+        // Menggambar outline pada judul secara manual
         for (Component comp : getComponents()) {
             if (comp instanceof JLabel && "The Usual Suspect".equals(((JLabel) comp).getText())) {
                 JLabel label = (JLabel) comp;
                 Graphics2D g2d = (Graphics2D) g.create();
                 g2d.setFont(label.getFont());
-
-                // Gambar outline
-                g2d.setColor(FONT_SHADOW_COLOR);
+                int ascent = g.getFontMetrics(label.getFont()).getAscent();
+                int x = label.getX();
+                int y = label.getY() + ascent;
                 int offset = 2;
-                g2d.drawString(label.getText(), label.getX() + offset, label.getY() + g.getFontMetrics(label.getFont()).getAscent() + offset);
-
-                // Gambar teks utama
+                g2d.setColor(FONT_SHADOW_COLOR);
+                g2d.drawString(label.getText(), x + offset, y + offset);
                 g2d.setColor(label.getForeground());
-                g2d.drawString(label.getText(), label.getX(), label.getY() + g.getFontMetrics(label.getFont()).getAscent());
-
+                g2d.drawString(label.getText(), x, y);
                 g2d.dispose();
             }
         }
@@ -167,25 +166,25 @@ public class MainMenuPanel extends JPanel {
 
     private void loadAssets() {
         try { backgroundImage = new ImageIcon(Objects.requireNonNull(getClass().getResource("/assets/background.gif"))).getImage(); } catch (Exception e) { System.err.println("Gagal memuat background.gif: " + e.getMessage()); }
-        try (InputStream is = getClass().getResourceAsStream("/assets/ArcadeClassic.ttf")) {
-            arcadeFont = (is != null) ? Font.createFont(Font.TRUETYPE_FONT, is) : new Font("Arial", Font.BOLD, 14);
-            titleFont = arcadeFont.deriveFont(48f);
+        try (InputStream is = getClass().getResourceAsStream(gi"/assets/joystixmonospace.otf")) {
+            joystixFont = (is != null) ? Font.createFont(Font.TRUETYPE_FONT, is) : new Font("Monospaced", Font.BOLD, 14);
+            titleFont = joystixFont.deriveFont(48f);
         } catch (Exception e) {
-            System.err.println("Gagal memuat ArcadeClassic.ttf: " + e.getMessage());
-            arcadeFont = new Font("Arial", Font.BOLD, 14);
+            System.err.println("Gagal memuat joystix monospace.otf: " + e.getMessage());
+            joystixFont = new Font("Monospaced", Font.BOLD, 14);
             titleFont = new Font("Arial", Font.BOLD, 30);
         }
     }
 
     private void setupRadioButton(JRadioButton button) {
-        button.setFont(arcadeFont.deriveFont(20f));
+        button.setFont(joystixFont.deriveFont(20f));
         button.setOpaque(false);
         button.setForeground(FONT_COLOR);
         button.setFocusPainted(false);
     }
 
     private void setupLabel(JLabel label, float size) {
-        label.setFont(arcadeFont.deriveFont(size));
+        label.setFont(joystixFont.deriveFont(size));
         label.setForeground(FONT_COLOR);
     }
 

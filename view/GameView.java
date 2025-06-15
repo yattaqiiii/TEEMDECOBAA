@@ -17,12 +17,17 @@ public class GameView extends JFrame {
 
     public GameView() {
         setTitle("The Usual Suspect");
-        // --- PERUBAHAN: Ukuran disesuaikan dengan background ---
-        // Ukuran konten adalah 682x512. Title bar Windows biasanya sekitar 38px.
-        setSize(682, 512);
+        // --- PERUBAHAN: Mengunci ukuran jendela game ---
+        // Ukuran konten panel adalah 682x512.
+        // JFrame perlu sedikit lebih tinggi untuk menampung title bar Windows.
+        JPanel contentPane = new JPanel(new BorderLayout());
+        contentPane.setPreferredSize(new Dimension(682, 512));
+        setContentPane(contentPane);
+        pack(); // pack() akan menyesuaikan ukuran frame dengan isinya
+
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setResizable(false);
+        setResizable(false); // Ukuran tidak bisa diubah oleh user
 
         cardLayout = new CardLayout();
         mainPanel = new JPanel(cardLayout);
@@ -30,7 +35,7 @@ public class GameView extends JFrame {
         mainMenuPanel = new MainMenuPanel(this);
         mainPanel.add(mainMenuPanel, "MENU");
 
-        add(mainPanel);
+        getContentPane().add(mainPanel);
         setVisible(true);
     }
 
@@ -39,7 +44,7 @@ public class GameView extends JFrame {
         this.currentDifficulty = difficulty;
 
         Player player = new Player(350, 350);
-        // --- PERUBAHAN: Mengirim ukuran baru ke ViewModel ---
+        // Mengirim ukuran yang benar ke ViewModel
         GameViewModel viewModel = new GameViewModel(player, 682, 512, difficulty);
         gamePanel = new GamePanel(viewModel, this);
 
