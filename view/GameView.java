@@ -4,9 +4,18 @@ import database.DatabaseConnection;
 import model.Difficulty;
 import model.Player;
 import viewmodel.GameViewModel;
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JFrame; // Diubah dari javax.swing.*
+import javax.swing.JPanel; // Diubah dari javax.swing.*
+import java.awt.CardLayout; // Diubah dari java.awt.*;
 
+// kelas gameview merupakan frame utama untuk aplikasi game.
+// kelas ini mengatur panel-panel yang akan ditampilkan, seperti menu utama dan panel game.
+// variabel cardlayout digunakan untuk mengganti antar panel.
+// variabel mainpanel adalah panel utama yang memegang panel lainnya menggunakan cardlayout.
+// variabel mainmenupanel merepresentasikan panel menu utama.
+// variabel gamepanel merepresentasikan panel tempat permainan berlangsung.
+// variabel currentusername menyimpan nama pengguna yang sedang bermain.
+// variabel currentdifficulty menyimpan tingkat kesulitan yang dipilih.
 public class GameView extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel mainPanel;
@@ -14,6 +23,7 @@ public class GameView extends JFrame {
     private GamePanel gamePanel;
     private String currentUsername;
     private Difficulty currentDifficulty;
+    private int currentTotalBallsCaught; // Tambahkan variabel ini
 
     public GameView() {
         setTitle("The Usual Suspect");
@@ -28,7 +38,6 @@ public class GameView extends JFrame {
 
         add(mainPanel);
 
-        // --- PERUBAHAN: Gunakan pack() untuk ukuran otomatis yang presisi ---
         pack();
 
         setLocationRelativeTo(null);
@@ -38,6 +47,7 @@ public class GameView extends JFrame {
     public void startGame(String username, Difficulty difficulty) {
         this.currentUsername = username;
         this.currentDifficulty = difficulty;
+        this.currentTotalBallsCaught = 0; // Inisialisasi saat game dimulai
 
         Player player = new Player(317, 350); // Posisi awal player di tengah
 
@@ -50,9 +60,11 @@ public class GameView extends JFrame {
         gamePanel.requestFocusInWindow();
     }
 
-    public void showMenu(int finalScore) {
+    // Modifikasi showMenu untuk menerima total bola yang ditangkap
+    public void showMenu(int finalScore, int totalBallsCaught) {
         if (currentUsername != null && !currentUsername.isBlank() && currentDifficulty != null) {
-            DatabaseConnection.insertScore(currentUsername, finalScore, currentDifficulty.name());
+            // Panggil insertScore dengan parameter yang benar
+            DatabaseConnection.insertScore(currentUsername, finalScore, totalBallsCaught, currentDifficulty.name());
         }
         if (gamePanel != null) {
             mainPanel.remove(gamePanel);

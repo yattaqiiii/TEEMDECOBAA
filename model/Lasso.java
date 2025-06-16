@@ -1,5 +1,10 @@
 package model;
 
+// kelas lasso merepresentasikan lasso (tali) yang digunakan pemain untuk menangkap objek.
+// variabel endx dan endy adalah koordinat target atau ujung dari lasso ketika dilempar.
+// variabel active menandakan apakah lasso sedang aktif (dilempar) atau tidak.
+// variabel target menyimpan referensi ke skillball yang berhasil ditangkap oleh lasso.
+// variabel activationtime mencatat waktu kapan lasso mulai diaktifkan, berguna untuk mengatur durasi lasso jika tidak mengenai target.
 public class Lasso {
     private int endX, endY;
     private boolean active;

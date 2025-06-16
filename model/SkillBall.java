@@ -1,5 +1,11 @@
 package model;
 
+// kelas skillball merepresentasikan objek bola (skillball) dalam game yang bisa ditangkap pemain.
+// variabel x dan y menyimpan posisi bola.
+// variabel speed menentukan kecepatan gerak bola.
+// variabel score adalah nilai yang didapat jika bola ini ditangkap.
+// variabel type menentukan jenis objek (misalnya ayam, bom) yang mempengaruhi skor atau perilaku lain.
+// variabel state menandakan kondisi bola, apakah sedang bergerak (moving) atau sudah tertangkap (caught).
 public class SkillBall {
     private int x, y, speed, score;
     private final ObjectType type;

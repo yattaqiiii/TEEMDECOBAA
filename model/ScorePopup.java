@@ -2,6 +2,12 @@ package model;
 
 import java.awt.Color;
 
+// kelas scorepopup merepresentasikan teks skor yang muncul sementara di layar ketika pemain berhasil menangkap bola.
+// variabel text adalah teks skor yang ditampilkan (misalnya "+10" atau "-5").
+// variabel x dan y adalah posisi popup skor di layar.
+// variabel lifetime menentukan berapa lama popup akan ditampilkan sebelum menghilang.
+// variabel color menentukan warna teks skor (hijau untuk positif, merah untuk negatif).
+// variabel alpha mengatur transparansi popup, membuatnya memudar seiring waktu.
 public class ScorePopup {
     private final String text;
     private int x, y;

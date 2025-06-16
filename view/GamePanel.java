@@ -2,9 +2,27 @@ package view;
 
 import model.*;
 import viewmodel.GameViewModel;
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
+import javax.swing.InputMap;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.RenderingHints;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -27,7 +45,6 @@ public class GamePanel extends JPanel implements Runnable {
         this.parentFrame = parentFrame;
         this.currentGameState = GameState.PLAYING;
         setLayout(null);
-        // --- PERUBAHAN: Set ukuran pilihan panel ---
         setPreferredSize(new Dimension(682, 512));
 
         loadAssets();
@@ -44,7 +61,6 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     private void loadAssets() {
-        // --- PERUBAHAN: Memuat font Daydream.ttf ---
         try (InputStream is = getClass().getResourceAsStream("/assets/Daydream.ttf")) {
             customFont = (is != null) ? Font.createFont(Font.TRUETYPE_FONT, is) : new Font("Arial", Font.BOLD, 20);
         } catch (Exception e) {
@@ -84,12 +100,14 @@ public class GamePanel extends JPanel implements Runnable {
 
         quitInGameButton = createImageButton("/assets/quit_button.png");
         quitInGameButton.setBounds(241, 340, 200, 50);
-        quitInGameButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore()));
+        // Mengirim total skor dan total bola yang ditangkap ke showMenu
+        quitInGameButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore(), viewModel.getTotalBallsCaught()));
         add(quitInGameButton);
 
         backToMenuButton = createImageButton("/assets/back_button.png");
         backToMenuButton.setBounds(241, 340, 200, 50);
-        backToMenuButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore()));
+        // Mengirim total skor dan total bola yang ditangkap ke showMenu
+        backToMenuButton.addActionListener(e -> parentFrame.showMenu(viewModel.getTotalScore(), viewModel.getTotalBallsCaught()));
         add(backToMenuButton);
 
         setComponentVisibility();
@@ -136,68 +154,143 @@ public class GamePanel extends JPanel implements Runnable {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         drawGameWorld(g2d);
         if (currentGameState == GameState.PAUSED) drawOverlay(g2d, "Game Paused");
+        else if (currentGameState == GameState.PLAYING) {
+            // Tidak ada overlay khusus untuk PLAYING, hanya gambar game world
+        }
         else if (currentGameState == GameState.GAME_OVER) drawOverlay(g2d, "Game Over");
     }
 
     private void drawGameWorld(Graphics2D g2d) {
+        // gambar background
         if (backgroundImage != null) g2d.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
-        Image currentBasketImage = basketImage0; int score = viewModel.getTotalScore();
-        if (score >= 300) currentBasketImage = basketImage300; else if (score >= 150) currentBasketImage = basketImage150;
-        if (currentBasketImage != null) g2d.drawImage(currentBasketImage, 501, 400, this);
+
+        // tentukan gambar keranjang berdasarkan skor pemain
+        Image currentBasketImage = basketImage0;
+        int score = viewModel.getTotalScore();
+        if (score >= 300) currentBasketImage = basketImage300;
+        else if (score >= 150) currentBasketImage = basketImage150;
+        if (currentBasketImage != null) g2d.drawImage(currentBasketImage, 501, 400, this); // gambar keranjang pada posisi tetap
+
+        // dapatkan data lasso dan gambar pemain
         Lasso lasso = viewModel.getLasso();
-        Image imageToDraw = currentImage;
+        Image imageToDraw = currentImage; // gambar pemain default (menghadap depan)
+        // jika lasso aktif, ubah gambar pemain menghadap kiri/kanan sesuai arah lasso
         if (lasso.isActive()) imageToDraw = (lasso.getEndX() < viewModel.getPlayer().getX() + 32) ? playerImageLeft : playerImageRight;
-        if (imageToDraw != null) g2d.drawImage(imageToDraw, viewModel.getPlayer().getX(), viewModel.getPlayer().getY(), this);
+        if (imageToDraw != null) g2d.drawImage(imageToDraw, viewModel.getPlayer().getX(), viewModel.getPlayer().getY(), this); // gambar pemain
+
+        // jika lasso aktif dan gambar tangan tersedia, gambar lasso
         if (lasso.isActive() && tanganStghImage != null) drawLasso(g2d, lasso, imageToDraw == playerImageLeft);
-        for (SkillBall ball : viewModel.getSkillBalls()) { Image ballImage = objectImages.get(ball.getType()); if (ballImage != null) g2d.drawImage(ballImage, ball.getX(), ball.getY(), this); }
+
+        // gambar semua bola skill (skillball) yang ada di permainan
+        for (SkillBall ball : viewModel.getSkillBalls()) {
+            Image ballImage = objectImages.get(ball.getType()); // dapatkan gambar sesuai tipe bola
+            if (ballImage != null) g2d.drawImage(ballImage, ball.getX(), ball.getY(), this);
+        }
+        // gambar elemen ui (skor, waktu)
         drawUI(g2d);
     }
 
-    // --- PERBAIKAN: Logika posisi keluar lasso ---
     private void drawLasso(Graphics2D g2d, Lasso lasso, boolean isFacingLeft) {
         // Tentukan titik awal lasso dari "bahu" player, bukan dari tengah
-        int playerShoulderX = isFacingLeft ? viewModel.getPlayer().getX() : viewModel.getPlayer().getX() + 64; // Sisi kiri atau kanan player
-        int playerShoulderY = viewModel.getPlayer().getY() + 32; // Tengah-tengah player secara vertikal
+        int playerShoulderX = isFacingLeft ? viewModel.getPlayer().getX() : viewModel.getPlayer().getX() + 64; // Sisi kiri atau kanan player berdasarkan arah hadap
+        int playerShoulderY = viewModel.getPlayer().getY() + 32; // Tengah-tengah player secara vertikal (posisi bahu y)
 
         int targetX, targetY;
-        if (lasso.getTarget() != null) { targetX = lasso.getTarget().getX() + 20; targetY = lasso.getTarget().getY() + 20; }
-        else { targetX = lasso.getEndX(); targetY = lasso.getEndY(); }
-        double dx = targetX - playerShoulderX; double dy = targetY - playerShoulderY; double angle = Math.atan2(dy, dx);
-        double distance = Math.sqrt(dx * dx + dy * dy); int segmentLength = tanganStghImage.getWidth(this); if (segmentLength <= 0) segmentLength = 1;
-        AffineTransform oldTransform = g2d.getTransform();
-        g2d.translate(playerShoulderX, playerShoulderY); g2d.rotate(angle);
-        for (int i = 0; i < distance - segmentLength; i += segmentLength * 0.9) g2d.drawImage(tanganStghImage, i, -tanganStghImage.getHeight(this) / 2, this);
-        if (tanganImage != null) g2d.drawImage(tanganImage, (int) distance - tanganImage.getWidth(this), -tanganImage.getHeight(this) / 2, this);
-        g2d.setTransform(oldTransform);
+        // jika ada target (bola tertangkap), arahkan lasso ke tengah bola
+        if (lasso.getTarget() != null) {
+            targetX = lasso.getTarget().getX() + 20; // 20 adalah setengah perkiraan lebar/tinggi objek bola
+            targetY = lasso.getTarget().getY() + 20; // 20 adalah setengah perkiraan lebar/tinggi objek bola
+        }
+        // jika tidak ada target (lasso dilempar ke titik kosong), arahkan lasso ke posisi klik mouse
+        else {
+            targetX = lasso.getEndX();
+            targetY = lasso.getEndY();
+        }
+        // hitung sudut dan jarak antara bahu pemain dan target lasso
+        double dx = targetX - playerShoulderX; // perbedaan x
+        double dy = targetY - playerShoulderY; // perbedaan y
+        double angle = Math.atan2(dy, dx); // sudut dalam radian, dari sumbu x positif ke vektor (dx, dy)
+        double distance = Math.sqrt(dx * dx + dy * dy); // jarak euclidean antara bahu dan target
+        int segmentLength = tanganStghImage.getWidth(this); // panjang satu segmen gambar tangan (bagian tengah lasso)
+        if (segmentLength <= 0) segmentLength = 1; // hindari pembagian dengan nol atau nilai negatif jika gambar gagal dimuat
+
+        AffineTransform oldTransform = g2d.getTransform(); // simpan transformasi grafis (rotasi, translasi) saat ini
+        g2d.translate(playerShoulderX, playerShoulderY); // pindahkan titik origin (0,0) sistem koordinat grafis ke bahu pemain
+        g2d.rotate(angle); // rotasi sistem koordinat grafis sesuai sudut ke target
+
+        // gambar segmen-segmen tangan (tanganStghImage) sepanjang jarak ke target
+        // loop ini menggambar bagian tengah lasso yang terdiri dari banyak gambar 'tanganStghImage'
+        for (int i = 0; i < distance - segmentLength; i += segmentLength * 0.9) { // 0.9 untuk sedikit tumpang tindih antar segmen agar terlihat menyambung
+            g2d.drawImage(tanganStghImage, i, -tanganStghImage.getHeight(this) / 2, this); // gambar segmen pada posisi i (sepanjang sumbu x baru setelah rotasi), y disesuaikan agar tengah gambar tangan sejajar
+        }
+        // gambar ujung tangan (tanganImage) di akhir lasso (dekat target)
+        if (tanganImage != null) {
+            g2d.drawImage(tanganImage, (int) distance - tanganImage.getWidth(this), -tanganImage.getHeight(this) / 2, this);
+        }
+        g2d.setTransform(oldTransform); // kembalikan transformasi grafis ke kondisi semula sebelum menggambar lasso
     }
 
     private void drawUI(Graphics2D g2d) {
-        drawTextWithOutline(g2d, String.format("Time: %02d:%02d", viewModel.getRemainingTime() / 60, viewModel.getRemainingTime() % 60), 15, 40, 24f);
-        drawTextWithOutline(g2d, "Score: " + viewModel.getTotalScore(), 15, 70, 24f);
-        Font popupFont = customFont.deriveFont(20f);
-        for (ScorePopup popup : viewModel.getScorePopups()) {
-            g2d.setFont(popupFont);
-            g2d.setColor(popup.getColor());
-            g2d.drawString(popup.getText(), popup.getX(), popup.getY());
-        }
+        g2d.setFont(customFont.deriveFont(20f));
+        FontMetrics fm = g2d.getFontMetrics();
+
+        String scoreText = "Score: " + viewModel.getTotalScore();
+        String timeText = "Time: " + viewModel.getRemainingTime() + "s";
+        String ballsCaughtText = "Ball: " + viewModel.getTotalBallsCaught(); // Teks untuk jumlah bola
+
+        // Gambar teks skor
+        drawTextWithOutline(g2d, scoreText, 20, 40, fm);
+        // Gambar teks waktu
+        drawTextWithOutline(g2d, timeText, 20, 70, fm);
+        // Gambar teks jumlah bola yang ditangkap
+        drawTextWithOutline(g2d, ballsCaughtText, 20, 100, fm);
     }
 
-    private void drawOverlay(Graphics2D g2d, String text) {
-        g2d.setColor(new Color(0, 0, 0, 150)); g2d.fillRect(0, 0, getWidth(), getHeight());
-        Font bigFont = customFont.deriveFont(50f); FontMetrics fmBig = g2d.getFontMetrics(bigFont);
-        int msgWidth = fmBig.stringWidth(text);
-        drawTextWithOutline(g2d, text, (getWidth() - msgWidth) / 2, getHeight() / 2 - 100, 50f);
-        if (text.equals("Game Over")) {
-            Font smallFont = customFont.deriveFont(20f); FontMetrics fmSmall = g2d.getFontMetrics(smallFont);
-            int spaceMsgWidth = fmSmall.stringWidth("Press SPACE to return to Menu");
-            drawTextWithOutline(g2d, "Press SPACE to return to Menu", (getWidth() - spaceMsgWidth) / 2, getHeight() / 2 + 50, 20f);
-        }
+    private void drawTextWithOutline(Graphics2D g2d, String text, int x, int y, FontMetrics fm) {
+        int textWidth = fm.stringWidth(text);
+        int textHeight = fm.getAscent();
+
+        // Gambar bayangan teks (outline) dengan offset
+        int offset = 2;
+        g2d.setColor(FONT_OUTER_COLOR);
+        g2d.drawString(text, x - offset, y - offset);
+        g2d.drawString(text, x + offset, y - offset);
+        g2d.drawString(text, x - offset, y + offset);
+        g2d.drawString(text, x + offset, y + offset);
+
+        // Gambar teks utama di atasnya
+        g2d.setColor(FONT_INNER_COLOR);
+        g2d.drawString(text, x, y);
     }
 
-    private void drawTextWithOutline(Graphics2D g2d, String text, int x, int y, float size) {
-        Font font = customFont.deriveFont(size); g2d.setFont(font); g2d.setColor(FONT_OUTER_COLOR); int offset = 2;
-        g2d.drawString(text, x - offset, y); g2d.drawString(text, x + offset, y); g2d.drawString(text, x, y - offset); g2d.drawString(text, x, y + offset);
-        g2d.setColor(FONT_INNER_COLOR); g2d.drawString(text, x, y);
+    private void drawOverlay(Graphics2D g2d, String message) {
+        g2d.setColor(new Color(0, 0, 0, 170)); // Sedikit lebih gelap untuk kontras
+        g2d.fillRect(0, 0, getWidth(), getHeight());
+
+        Font overlayFont = customFont.deriveFont(40f); // Perbesar font menjadi 60f
+        FontMetrics fmOverlay = g2d.getFontMetrics(overlayFont);
+        int msgWidth = fmOverlay.stringWidth(message);
+        int msgAscent = fmOverlay.getAscent();
+        int msgDescent = fmOverlay.getDescent(); // Untuk perhitungan tinggi total yang lebih akurat
+
+        // Hitung posisi Y agar teks benar-benar di tengah vertikal
+        int yPosition = (getHeight() - (msgAscent + msgDescent)) / 2 + msgAscent;
+
+        // Gunakan FontMetrics dari overlayFont untuk drawTextWithOutline
+        // Simpan dan set font baru untuk drawTextWithOutline
+        Font originalFont = g2d.getFont();
+        g2d.setFont(overlayFont);
+        drawTextWithOutline(g2d, message, (getWidth() - msgWidth) / 2, yPosition, fmOverlay);
+        g2d.setFont(originalFont); // Kembalikan font asli
+
+        if (message.equals("Game Over")) {
+            Font smallFont = customFont.deriveFont(20f);
+            FontMetrics fmSmall = g2d.getFontMetrics(smallFont);
+            String spaceMsg = "Press SPACE to return to Menu";
+            int spaceMsgWidth = fmSmall.stringWidth(spaceMsg);
+            // Posisikan pesan "Press SPACE" sedikit di bawah pesan "Game Over"
+            drawTextWithOutline(g2d, spaceMsg, (getWidth() - spaceMsgWidth) / 2, yPosition + fmOverlay.getDescent() + fmSmall.getAscent() + 10, fmSmall);
+        }
     }
 
     private void setupKeyBindings() {
@@ -210,6 +303,6 @@ public class GamePanel extends JPanel implements Runnable {
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, 0), "moveDown"); inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, 0), "moveDown");
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_A, 0), "moveLeft"); inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0), "moveLeft");
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, 0), "moveRight"); inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0), "moveRight");
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "returnToMenu"); getActionMap().put("returnToMenu", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { if (currentGameState == GameState.GAME_OVER) parentFrame.showMenu(viewModel.getTotalScore()); } });
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0), "returnToMenu"); getActionMap().put("returnToMenu", new AbstractAction() { @Override public void actionPerformed(ActionEvent e) { if (currentGameState == GameState.GAME_OVER) parentFrame.showMenu(viewModel.getTotalScore(), viewModel.getTotalBallsCaught()); } });
     }
 }

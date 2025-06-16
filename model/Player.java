@@ -1,5 +1,8 @@
 package model;
 
+// kelas player merepresentasikan pemain dalam game.
+// variabel x dan y menyimpan koordinat posisi pemain di layar.
+// variabel direction menyimpan arah hadap pemain saat ini (misalnya "front", "left", "right").
 public class Player {
     private int x;
     private int y;

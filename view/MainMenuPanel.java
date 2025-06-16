@@ -22,7 +22,6 @@ public class MainMenuPanel extends JPanel {
 
     public MainMenuPanel(GameView parentFrame) {
         this.parentFrame = parentFrame;
-        // --- PERUBAHAN: Set ukuran pilihan panel ---
         setPreferredSize(new Dimension(682, 512));
 
         loadAssets();
@@ -52,7 +51,7 @@ public class MainMenuPanel extends JPanel {
         setupLabel(topScoresLabel, 22f);
         topScoresLabel.setHorizontalAlignment(SwingConstants.CENTER);
         rightPanel.add(topScoresLabel, BorderLayout.NORTH);
-        String[] columnNames = {"Name", "Score"};
+        String[] columnNames = {"Name", "Score", "Count"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) { return false; }
@@ -97,7 +96,6 @@ public class MainMenuPanel extends JPanel {
         return leftPanel;
     }
 
-    // --- PERUBAHAN: Logika outline tebal pada judul dihapus ---
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -108,7 +106,6 @@ public class MainMenuPanel extends JPanel {
 
     private void loadAssets() {
         try { backgroundImage = new ImageIcon(Objects.requireNonNull(getClass().getResource("/assets/background.gif"))).getImage(); } catch (Exception e) { System.err.println("Gagal memuat background.gif: " + e.getMessage()); }
-        // --- PERUBAHAN: Memuat font Daydream.ttf ---
         try (InputStream is = getClass().getResourceAsStream("/assets/Daydream.ttf")) {
             customFont = (is != null) ? Font.createFont(Font.TRUETYPE_FONT, is) : new Font("Arial", Font.BOLD, 14);
             titleFont = customFont.deriveFont(48f);
@@ -123,5 +120,12 @@ public class MainMenuPanel extends JPanel {
     private void setupLabel(JLabel label, float size) { label.setFont(customFont.deriveFont(size)); label.setForeground(FONT_COLOR); }
     private JButton createImageButton(String imagePath) { JButton button = new JButton(); try { ImageIcon icon = new ImageIcon(Objects.requireNonNull(getClass().getResource(imagePath))); button.setIcon(icon); button.setText(""); button.setBorder(BorderFactory.createEmptyBorder()); button.setContentAreaFilled(false); button.setFocusPainted(false); } catch (Exception e) { System.err.println("Gagal memuat gambar tombol: " + imagePath); } return button; }
     private Difficulty getSelectedDifficulty() { if (mediumButton.isSelected()) return Difficulty.MEDIUM; if (hardButton.isSelected()) return Difficulty.HARD; return Difficulty.EASY; }
-    public void updateScoreTable() { tableModel.setRowCount(0); List<ScoreEntry> scores = DatabaseConnection.getScoresByMode(getSelectedDifficulty().name()); for (ScoreEntry score : scores) { tableModel.addRow(new Object[]{score.name(), score.score()}); } }
+    public void updateScoreTable() {
+        tableModel.setRowCount(0);
+        List<ScoreEntry> scores = DatabaseConnection.getScoresByMode(getSelectedDifficulty().name());
+        for (ScoreEntry score : scores) {
+            // Menggunakan score.username() dan score.count() sesuai dengan definisi record ScoreEntry yang baru
+            tableModel.addRow(new Object[]{score.username(), score.score(), score.count()});
+        }
+    }
 }
